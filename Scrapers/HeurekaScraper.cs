@@ -1,4 +1,5 @@
-﻿using System.Xml.Linq;
+﻿using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 using Microsoft.Playwright;
 using Webscraper.Models;
 using Webscraper.Utils;
@@ -11,7 +12,7 @@ namespace Webscraper.Scrapers
         {
             XDocument sitemap = await GetSitemap();
             var productsToScrape = await GetProductURLs();
-            await PerfomScrape(productsToScrape);
+            await PerfomScrape(productsToScrape, WebsiteId.Heureka);
         }
 
         private async Task<XDocument> GetSitemap()
@@ -39,28 +40,48 @@ namespace Webscraper.Scrapers
             return productUrls;
         }
 
-        protected override async ValueTask<Product> ScrapePage(string url, string urlHash, IPage page)
+        protected override async IAsyncEnumerable<Product> ExtractProductAsync(string url, IPage page, [EnumeratorCancellation] CancellationToken ct)
         {
             await page.GotoAsync(url);
+            var urlHash = Hasher.HashString(url);
+
+            bool isOutOfStock = false;
+            try
+            {
+                var outOfStockLocator = page.GetByText("Tento produkt už neponúka žiadny e-shop.");
+                await outOfStockLocator.WaitForAsync(new() { Timeout = 1000 });
+                if (await outOfStockLocator.IsVisibleAsync())
+                    isOutOfStock = true;
+            }
+            catch (TimeoutException) { /* Ignore the timeout exception. Try block throws if the product is out of stock */ }
 
             var productSelector = page.Locator("div>h1");
             var product = await productSelector.InnerTextAsync();
 
-            string price;
-            try
+            double price = -1;
+            if (!isOutOfStock)
             {
-                var priceSelector = page.Locator(".c-top-offer__price");
-                await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
-                price = await priceSelector.InnerTextAsync();
-            }
-            catch (Exception)
-            {
-                var priceSelector = page.Locator(".c-discount-price-box__body-content").Nth(0);
-                await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
-                price = await priceSelector.InnerTextAsync();
+                string priceString = "";
+                try
+                {
+                    var priceSelector = page.Locator(".c-top-offer__price");
+                    await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
+                    priceString = await priceSelector.InnerTextAsync();
+                }
+                catch (Exception)
+                {
+                    var priceSelector = page.Locator(".c-discount-price-box__body-content").Nth(0);
+                    await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
+                    priceString = await priceSelector.InnerTextAsync();
+                }
+                finally
+                {
+                    double priceFloat = double.Parse(priceString.Replace(',', '.')[..^2]);
+                    price = Math.Round(priceFloat, 2);
+                }
             }
 
-            return new(product, float.Parse(price.Replace(',', '.')[..^2]), (int)WebsiteId.Heureka, urlHash);
+            yield return new(product, price, (int)WebsiteId.Heureka, urlHash, url, isOutOfStock);
         }
     }
 }

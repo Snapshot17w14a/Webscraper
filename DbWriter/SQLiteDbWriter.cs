@@ -22,15 +22,15 @@ namespace Webscraper.DbWriter
             return Task.Run(() => DatabaseChannelConsumer(_channel.Reader), CancellationToken.None);
         }
 
-        private async Task DatabaseChannelConsumer(ChannelReader<T> productChannel)
+        private async Task DatabaseChannelConsumer(ChannelReader<T> itemChannel)
         {
             List<T> batch = new(DB_SAVE_BATCH_SIZE);
 
             try
             {
-                await foreach (var product in productChannel.ReadAllAsync())
+                await foreach (var item in itemChannel.ReadAllAsync())
                 {
-                    batch.Add(product);
+                    batch.Add(item);
 
                     if (batch.Count >= DB_SAVE_BATCH_SIZE)
                     {
@@ -59,8 +59,7 @@ namespace Webscraper.DbWriter
             await _sqlite.OpenAsync();
             await using var transaction = await _sqlite.BeginTransactionAsync();
 
-            SqliteCommand command = _sqlite.CreateCommand();
-            await WriteLogic(command, batch);
+            await WriteLogic(_sqlite.CreateCommand(), batch);
 
             await transaction.CommitAsync();
             await _sqlite.CloseAsync();
@@ -68,7 +67,7 @@ namespace Webscraper.DbWriter
             _logger.Info($"Database save completed!");
         }
 
-        public static SQLiteDbWriter<T> CreateDbWriter<P>(SqliteConnection sqlite, ILogger? logger = null) where P : SQLiteDbWriter<T>, new()
+        public static SQLiteDbWriter<T> CreateInstance<P>(SqliteConnection sqlite, ILogger? logger = null) where P : SQLiteDbWriter<T>, new()
         {
             Channel<T> dbChannel = Channel.CreateBounded<T>(new BoundedChannelOptions(DB_SAVE_BATCH_SIZE * 2)
             {
