@@ -9,11 +9,12 @@ namespace Webscraper.Utils
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(string.Format("[Error - {0}]: {1}", caller, message));
+            Console.ResetColor();
         }
 
         public void Info(string message, [CallerMemberName] string caller = "Unknown")
         {
-            Console.ForegroundColor = ConsoleColor.White;
+            Console.ResetColor();
             Console.WriteLine(string.Format("[Info - {0}]: {1}", caller, message));
         }
 
@@ -21,6 +22,7 @@ namespace Webscraper.Utils
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine(string.Format("[Warn - {0}]: {1}", caller, message));
+            Console.ResetColor();
         }
     }
 }

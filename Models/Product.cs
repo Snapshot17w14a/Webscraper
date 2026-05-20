@@ -1,23 +1,18 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-
-namespace Webscraper.Models
+﻿namespace Webscraper.Models
 {
     internal readonly struct Product
     {
-        public Product(string name, float price, int websiteId)
+        public Product(string name, float price, int websiteId, string urlHash)
         {
             Name = name;
             Price = price;
             WebsiteId = websiteId;
-
-            var nameHash = SHA256.HashData(Encoding.UTF8.GetBytes(name));
-            NameHash = Convert.ToBase64String(nameHash);
+            UrlHash = urlHash;
         }
 
         public readonly string Name;
         public readonly float Price;
-        public readonly string NameHash;
+        public readonly string UrlHash;
         public readonly int WebsiteId;
     }
 }

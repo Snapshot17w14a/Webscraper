@@ -11,7 +11,7 @@ namespace Webscraper.Scrapers
         {
             XDocument sitemap = await GetSitemap();
             var productsToScrape = await GetProductURLs();
-            await ParallelScrapeSite(productsToScrape);
+            await PerfomScrape(productsToScrape);
         }
 
         private async Task<XDocument> GetSitemap()
@@ -39,99 +39,28 @@ namespace Webscraper.Scrapers
             return productUrls;
         }
 
-        private async Task ParallelScrapeSite(IEnumerable<string> productUrls)
+        protected override async ValueTask<Product> ScrapePage(string url, string urlHash, IPage page)
         {
-            //ConcurrentBag<Product> scrapedProducts = [];
-            //CancellationTokenSource tokenSource = new();
+            await page.GotoAsync(url);
 
-            //ParallelOptions scrapeOptions = new()
-            //{
-            //    MaxDegreeOfParallelism = 3,
-            //    CancellationToken = tokenSource.Token
-            //};
+            var productSelector = page.Locator("div>h1");
+            var product = await productSelector.InnerTextAsync();
 
-            //void ExitCleanup(object? sender, EventArgs args) => tokenSource.Cancel();
-
-            //AppDomain.CurrentDomain.ProcessExit += ExitCleanup;
-            //Console.CancelKeyPress += ExitCleanup;
-
-            //Channel<Product> channel = Channel.CreateBounded<Product>(10);
-
-            static async ValueTask<Product> Scraper(string url, IPage page)
+            string price;
+            try
             {
-                await page.GotoAsync(url);
-
                 var priceSelector = page.Locator(".c-top-offer__price");
-                var productSelector = page.Locator("div>h1");
-
-                var price = await priceSelector.InnerTextAsync();
-                var product = await productSelector.InnerTextAsync();
-
-                return new(product, float.Parse(price[..2]), (int)WebsiteId.Heureka);
+                await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
+                price = await priceSelector.InnerTextAsync();
+            }
+            catch (Exception)
+            {
+                var priceSelector = page.Locator(".c-discount-price-box__body-content").Nth(0);
+                await priceSelector.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
+                price = await priceSelector.InnerTextAsync();
             }
 
-            await PerfomScrape(productUrls, Scraper);
-
-            //try
-            //{
-            //    await Parallel.ForEachAsync(productUrls, scrapeOptions, async (url, cancellationToken) =>
-            //    {
-            //        Console.WriteLine($"[Info] Scraping site: {url}...");
-            //        await using var context = await _browser.NewContextAsync();
-            //        await context.RouteAsync("**/*.{png,jpg,jpeg,gif,webp,svg}", r => r.AbortAsync());
-            //        var page = await _browser.NewPageAsync();
-
-            //        try
-            //        {
-            //            await page.GotoAsync(url);
-
-            //            var priceSelector = page.Locator(".c-top-offer__price");
-            //            var productSelector = page.Locator("div>h1");
-
-            //            var price = await priceSelector.InnerTextAsync();
-            //            var product = await productSelector.InnerTextAsync();
-
-            //            scrapedProducts.Add(new(product, float.Parse(price[..2])));
-
-            //            cancellationToken.ThrowIfCancellationRequested();
-            //        }
-            //        catch (OperationCanceledException) { throw; }
-            //        catch (Exception ex)
-            //        {
-            //            Console.ForegroundColor = ConsoleColor.Red;
-            //            Console.WriteLine($"[Error] Failed to scrape {url}: {ex.Message}");
-            //            Console.ForegroundColor = ConsoleColor.White;
-            //        }
-            //    });
-            //}
-            //catch (OperationCanceledException)
-            //{
-            //    Console.ForegroundColor = ConsoleColor.Yellow;
-            //    Console.WriteLine($"[Warn] Operation cancelled, saving gathered data to database");
-            //    Console.ForegroundColor = ConsoleColor.White;
-
-            //    _sqlite.Open();
-            //    using var transaction = _sqlite.BeginTransaction();
-
-            //    SqliteCommand command = new("INSERT INTO products (ProductName, NameHash, Price, WebsiteId) VALUES ($name, $hash, $price, $wid)");
-
-            //    var productNameParam = command.Parameters.Add("$name", SqliteType.Text);
-            //    var nameHashParam = command.Parameters.Add("$hash", SqliteType.Text);
-            //    var priceParam = command.Parameters.Add("$price", SqliteType.Real);
-            //    var websiteIdParam = command.Parameters.Add("$wid", SqliteType.Integer);
-
-            //    foreach (var product in scrapedProducts)
-            //    {
-            //        productNameParam.Value = product.Name;
-            //        nameHashParam.Value = product.NameHash;
-            //        priceParam.Value = product.Price;
-            //        websiteIdParam.Value = WebsiteId.Heureka;
-            //        command.ExecuteNonQuery();
-            //    }
-
-            //    transaction.Commit();
-            //    _sqlite.Close();
-            //}
+            return new(product, float.Parse(price.Replace(',', '.')[..^2]), (int)WebsiteId.Heureka, urlHash);
         }
     }
 }

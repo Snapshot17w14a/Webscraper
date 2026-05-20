@@ -15,13 +15,13 @@ namespace Webscraper.Scrapers
                 urls.Add(Guid.NewGuid().ToString());
             }
 
-            await PerfomScrape(urls, Scrap);
+            await PerfomScrape(urls);
         }
 
-        private async ValueTask<Product> Scrap(string url, IPage page)
+        protected override async ValueTask<Product> ScrapePage(string url, string urlHash, IPage page)
         {
             await Task.Delay((int)(1000 * rnd.NextSingle()));
-            return new Product(url, rnd.NextSingle(), (int)WebsiteId.Mock);
+            return new Product(url, rnd.NextSingle(), (int)WebsiteId.Mock, urlHash);
         }
     }
 }

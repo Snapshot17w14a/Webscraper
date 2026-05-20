@@ -1,9 +1,8 @@
-﻿using Webscraper;
-using Webscraper.Scrapers;
+﻿using Webscraper.Scrapers;
 
 internal class Program
 {
-    private static async Task Main(string[] args)
+    private static async Task Main()
     {
         //var filteredSitemapUrls = sitemap.Descendants().Where(d => d.Name.LocalName == "loc" && d.Value.Contains("/product/")).Where(d => categories.Any(cat => d.Value.Contains(cat))).Select(d => d.Value);
         //var page = await browser.NewPageAsync();
@@ -13,7 +12,7 @@ internal class Program
 
         //productUrls = XDocument.Parse(testmapcontent).Descendants().Where(d => d.Name.LocalName == "loc" && !d.Value.Contains(".jpg")).Select(d => d.Value);
 
-        await using var scraper = await Scraper.CreateInstance<MockScraper>();
+        await using var scraper = await Scraper.CreateInstance<HeurekaScraper>();
         await scraper.ScrapeSite();
 
         //foreach (var item in result)

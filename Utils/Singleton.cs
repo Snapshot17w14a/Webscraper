@@ -1,4 +1,4 @@
-﻿namespace Webscraper
+﻿namespace Webscraper.Utils
 {
     internal class Singleton<T>(T instance) where T : class
     {
