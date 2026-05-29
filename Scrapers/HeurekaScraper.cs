@@ -15,6 +15,12 @@ namespace Webscraper.Scrapers
             await PerfomScrape(productsToScrape, WebsiteId.Heureka);
         }
 
+        protected override async Task InitializePlaywright()
+        {
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+        }
+
         private async Task<XDocument> GetSitemap()
         {
             XDocument sitemap;

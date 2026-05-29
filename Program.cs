@@ -4,7 +4,7 @@ internal class Program
 {
     private static async Task Main()
     {
-        await using var scraper = await Scraper.CreateInstance<PricemaniaScraper>();
+        await using var scraper = await Scraper.CreateInstance<NajnakupScraper>();
         await scraper.ScrapeSite();
     }
 }

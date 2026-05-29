@@ -22,11 +22,12 @@ namespace Webscraper.Scrapers
         {
             Heureka = 0,
             Pricemania = 1,
+            Najnakup = 2,
             Mock = 10,
         }
 
         public abstract Task ScrapeSite();
-
+        protected abstract Task InitializePlaywright();
         protected abstract IAsyncEnumerable<Product> ExtractProductAsync(string url, IPage page, CancellationToken ct);
 
         protected async Task PerfomScrape(IEnumerable<string> productUrls, WebsiteId websiteId)
@@ -56,9 +57,21 @@ namespace Webscraper.Scrapers
             {
                 ParallelOptions scrapeOptions = new()
                 {
-                    MaxDegreeOfParallelism = 3,
+                    MaxDegreeOfParallelism = 1,
                     CancellationToken = tokenSource.Token
                 };
+
+                //const string zenPath = @"C:\Program Files\Zen Browser\zen.exe";
+                //const string zenProfilePath = @"C:\Users\kevin\AppData\Roaming\zen\Profiles\c6vk1f5m.Default (release)-1";
+
+                const string firefoxPath = @"C:\Program Files\Mozilla Firefox\firefox.exe";
+                const string firefoxProfilePath = @"C:\Users\kevin\AppData\Roaming\Mozilla\Firefox\Profiles\2g7ijudh.default-release";
+                await using var context = await _playwright.Firefox.LaunchPersistentContextAsync(firefoxProfilePath, new()
+                {
+                    Args = ["--allow-downgrade"],
+                    Headless = false,
+                    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
+                });
 
                 // Scrape each product page in parallel, but limit the degree of parallelism to avoid rate limiting by the target website
                 await Parallel.ForEachAsync(productUrls, scrapeOptions, async (url, ct) =>
@@ -72,9 +85,9 @@ namespace Webscraper.Scrapers
                         return;
                     }
 
-                    await using var context = await _browser.NewContextAsync();
-                    await context.RouteAsync("**/*.{png,jpg,jpeg,gif,webp,svg}", r => r.AbortAsync());
-                    var page = await _browser.NewPageAsync();
+                    //await using var context = await _browser.NewContextAsync();
+                    //await context.RouteAsync("**/*.{png,jpg,jpeg,gif,webp,svg}", r => r.AbortAsync());
+                    var page = await context.NewPageAsync();
 
                     await foreach(var product in ExtractProductAsync(url, page, ct))
                     {
@@ -116,8 +129,10 @@ namespace Webscraper.Scrapers
 
             List<string> readUrls = [];
             if (reader.HasRows)
+            {
                 while (await reader.ReadAsync(ct))
                     readUrls.Add(reader.GetString(0));
+            }
 
             else
             {
@@ -139,22 +154,15 @@ namespace Webscraper.Scrapers
 
         public static async Task<T> CreateInstance<T>() where T : Scraper, new()
         {
-            var playwright = await Playwright.CreateAsync();
-            var browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
-
             var instance = new T
             {
-                _playwright = playwright,
-                _browser = browser,
                 _sqlite = new SqliteConnection($"Data Source={Path.Combine(Environment.CurrentDirectory, "productdb.sqlite")};Mode=ReadWrite"),
                 _logger = new ConsoleLogger()
             };
 
-            return instance;
-        }
+            await instance.InitializePlaywright();
 
-        public class ScrapeNotPossibleException(string message) : Exception(message)
-        {
+            return instance;
         }
     }
 }

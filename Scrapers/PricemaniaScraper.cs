@@ -7,12 +7,18 @@ namespace Webscraper.Scrapers
 {
     internal class PricemaniaScraper : Scraper
     {
-        private readonly string[] categoryStrings = ["https://www.pricemania.sk/bloky/", "https://www.pricemania.sk/peracniky/", "https://www.pricemania.sk/desiatove-boxy/", "https://www.pricemania.sk/obaly-a-dosky-na-zosity/", "https://www.pricemania.sk/zosity/", "https://www.pricemania.sk/skolske-sety/", "https://www.pricemania.sk/skolske-tasky/"];
+        private static readonly string[] categoryStrings = ["https://www.pricemania.sk/bloky/", "https://www.pricemania.sk/peracniky/", "https://www.pricemania.sk/desiatove-boxy/", "https://www.pricemania.sk/obaly-a-dosky-na-zosity/", "https://www.pricemania.sk/zosity/", "https://www.pricemania.sk/skolske-sety/", "https://www.pricemania.sk/skolske-tasky/"];
         private const string BASE_URL = "https://www.pricemania.sk";
 
         public override async Task ScrapeSite()
         {
             await PerfomScrape(categoryStrings, WebsiteId.Pricemania);
+        }
+
+        protected override async Task InitializePlaywright()
+        {
+            _playwright = await Playwright.CreateAsync();
+            _browser = await _playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
         }
 
         protected override async IAsyncEnumerable<Product> ExtractProductAsync(string url, IPage page, [EnumeratorCancellation] CancellationToken ct)
